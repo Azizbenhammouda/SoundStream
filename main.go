@@ -114,12 +114,7 @@ func main() {
 			continue
 		}
 
-		fmt.Printf(
-			"method=%s path=%s version=%s\n",
-			req[0],
-			req[1],
-			req[2],
-		)
+		fmt.Printf("method=%s path=%s version=%s\n", req[0], req[1], req[2])
 
 		handleRequest(req[1], conn)
 
