@@ -36,6 +36,34 @@ func validateReq(req []string) bool {
 
 	return true
 }
+func handleRequest(path string, conn net.Conn) {
+	var body string
+
+	switch path {
+	case "/":
+		body = "welcome to gox"
+
+	case "/hello":
+		body = "hello"
+
+	case "/about":
+		body = "this a small clone"
+
+	default:
+		body = "Not Found"
+	}
+
+	response := "HTTP/1.1 200 OK\r\n" +
+		"Content-Length: " + fmt.Sprint(len(body)) + "\r\n" +
+		"Content-Type: text/plain\r\n" +
+		"\r\n" +
+		body
+
+	_, err := conn.Write([]byte(response))
+	if err != nil {
+		fmt.Println("Write error:", err)
+	}
+}
 
 func main() {
 	listener, err := net.Listen("tcp", ":8080")
@@ -93,18 +121,7 @@ func main() {
 			req[2],
 		)
 
-		body := "Hello from GOX"
-
-		response := "HTTP/1.1 200 OK\r\n" +
-			"Content-Length: 14\r\n" +
-			"Content-Type: text/plain\r\n" +
-			"\r\n" +
-			body
-
-		_, err = conn.Write([]byte(response))
-		if err != nil {
-			fmt.Println("Write error:", err)
-		}
+		handleRequest(req[1], conn)
 
 		conn.Close()
 	}
