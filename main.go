@@ -36,6 +36,43 @@ func validateReq(req []string) bool {
 
 	return true
 }
+func handleConnection(conn net.Conn) {
+	defer conn.Close()
+	buffer := make([]byte, 4096)
+
+	n, err := conn.Read(buffer)
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+
+	}
+
+	if n == 0 {
+		fmt.Println("Client sent an empty request")
+		return
+
+	}
+
+	request := string(buffer[:n])
+
+	lines := strings.Split(request, "\r\n")
+
+	if len(lines) == 0 {
+		fmt.Println("Invalid HTTP request")
+		return
+
+	}
+
+	req := strings.Fields(lines[0])
+
+	if !validateReq(req) {
+		fmt.Println("Invalid HTTP request")
+		return
+
+	}
+	handleRequest(req[1], conn)
+	fmt.Printf("method=%s path=%s version=%s\n", req[0], req[1], req[2])
+}
 func handleRequest(path string, conn net.Conn) {
 	var body string
 
@@ -80,44 +117,7 @@ func main() {
 			fmt.Println("Accept error:", err)
 			continue
 		}
+		go handleConnection(conn)
 
-		buffer := make([]byte, 4096)
-
-		n, err := conn.Read(buffer)
-		if err != nil {
-			fmt.Println("Read error:", err)
-			conn.Close()
-			continue
-		}
-
-		if n == 0 {
-			fmt.Println("Client sent an empty request")
-			conn.Close()
-			continue
-		}
-
-		request := string(buffer[:n])
-
-		lines := strings.Split(request, "\r\n")
-
-		if len(lines) == 0 {
-			fmt.Println("Invalid HTTP request")
-			conn.Close()
-			continue
-		}
-
-		req := strings.Fields(lines[0])
-
-		if !validateReq(req) {
-			fmt.Println("Invalid HTTP request")
-			conn.Close()
-			continue
-		}
-
-		fmt.Printf("method=%s path=%s version=%s\n", req[0], req[1], req[2])
-
-		handleRequest(req[1], conn)
-
-		conn.Close()
 	}
 }
