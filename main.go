@@ -37,6 +37,7 @@ func validateReq(req []string) bool {
 	return true
 }
 func handleConnection(conn net.Conn) {
+
 	defer conn.Close()
 	buffer := make([]byte, 4096)
 
