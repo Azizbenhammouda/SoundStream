@@ -46,9 +46,16 @@ func (u userRepository) GetByEmail(email string) (*User, error) {
 	return &user, nil
 }
 func (u userRepository) Update(user *User) error {
-
+	result := u.db.Save(user)
+	if result.Error != nil {
+		return result.Error
+	}
 	return nil
 }
 func (u userRepository) Delete(id uuid.UUID) error {
+	result := u.db.Where("id = ?", id).Delete(&User{})
+	if result.Error != nil {
+		return result.Error
+	}
 	return nil
 }
