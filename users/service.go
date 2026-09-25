@@ -9,6 +9,7 @@ import (
 
 type UserService interface {
 	Register(input RegisterInput) (*User, error)
+	Login(email, password string) (*User, error)
 }
 type RegisterInput struct {
 	UserName string
@@ -19,6 +20,7 @@ type userService struct {
 	repo UserRepository
 }
 
+var ErrInvalidCredentials = errors.New("Email or Password are invalid")
 var ErrEmailTaken = errors.New("email already in use")
 
 func NewUserService(repo UserRepository) UserService {
@@ -48,4 +50,15 @@ func (us userService) Register(input RegisterInput) (*User, error) {
 		return nil, err
 	}
 	return &user, nil
+}
+func (us userService) Login(email, password string) (*User, error) {
+	user, err := us.repo.GetByEmail(email)
+	if err != nil {
+		return nil, ErrInvalidCredentials
+	}
+	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
+	if err != nil {
+		return nil, ErrInvalidCredentials
+	}
+	return user, nil
 }
