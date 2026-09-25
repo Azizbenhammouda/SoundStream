@@ -19,6 +19,8 @@ type userService struct {
 	repo UserRepository
 }
 
+var ErrEmailTaken = errors.New("email already in use")
+
 func NewUserService(repo UserRepository) UserService {
 	return userService{
 		repo: repo,
@@ -30,7 +32,7 @@ func (us userService) Register(input RegisterInput) (*User, error) {
 		return nil, err
 	}
 	if existingUser != nil {
-		return nil, errors.New("user already exists")
+		return nil, ErrEmailTaken
 	}
 	hashedBytes, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {

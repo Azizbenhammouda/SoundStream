@@ -3,122 +3,34 @@ package main
 import (
 	"fmt"
 	"log"
-	"net"
-	"slices"
-	"strings"
+	"net/http"
+	"os"
+
+	"github.com/Azizbenhammouda/SoundStream/users"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
-func validateReq(req []string) bool {
-	if len(req) != 3 {
-		fmt.Println("Error: Invalid HTTP request line")
-		return false
-	}
-
-	if !strings.HasPrefix(req[2], "HTTP/") {
-		fmt.Printf("Error: Invalid HTTP protocol version '%s'\n", req[2])
-		return false
-	}
-
-	methods := []string{
-		"GET",
-		"POST",
-		"PUT",
-		"DELETE",
-		"HEAD",
-		"OPTIONS",
-		"PATCH",
-	}
-
-	if !slices.Contains(methods, req[0]) {
-		fmt.Printf("Error: Invalid HTTP method '%s'\n", req[0])
-		return false
-	}
-
-	return true
-}
-func handleConnection(conn net.Conn) {
-
-	defer conn.Close()
-	buffer := make([]byte, 4096)
-
-	n, err := conn.Read(buffer)
-	if err != nil {
-		fmt.Println("Read error:", err)
-		return
-
-	}
-
-	if n == 0 {
-		fmt.Println("Client sent an empty request")
-		return
-
-	}
-
-	request := string(buffer[:n])
-
-	lines := strings.Split(request, "\r\n")
-
-	if len(lines) == 0 {
-		fmt.Println("Invalid HTTP request")
-		return
-
-	}
-
-	req := strings.Fields(lines[0])
-
-	if !validateReq(req) {
-		fmt.Println("Invalid HTTP request")
-		return
-
-	}
-	handleRequest(req[1], conn)
-	fmt.Printf("method=%s path=%s version=%s\n", req[0], req[1], req[2])
-}
-func handleRequest(path string, conn net.Conn) {
-	var body string
-
-	switch path {
-	case "/":
-		body = "welcome to gox"
-
-	case "/hello":
-		body = "hello"
-
-	case "/about":
-		body = "this a small clone"
-
-	default:
-		body = "Not Found"
-	}
-
-	response := "HTTP/1.1 200 OK\r\n" +
-		"Content-Length: " + fmt.Sprint(len(body)) + "\r\n" +
-		"Content-Type: text/plain\r\n" +
-		"\r\n" +
-		body
-
-	_, err := conn.Write([]byte(response))
-	if err != nil {
-		fmt.Println("Write error:", err)
-	}
-}
-
 func main() {
-	listener, err := net.Listen("tcp", ":8080")
+	dsn := os.Getenv("POSTGRES_CONFIG")
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer listener.Close()
-
-	fmt.Println("GOX TCP server is running on :8080")
-
-	for {
-		conn, err := listener.Accept()
-		if err != nil {
-			fmt.Println("Accept error:", err)
-			continue
-		}
-		go handleConnection(conn)
-
+	if err := db.Exec(`CREATE EXTENSION IF NOT EXISTS pgcrypto`).Error; err != nil {
+		log.Fatal("failed to enable pgcrypto:", err)
+	}
+	if err := db.AutoMigrate(&users.User{}); err != nil {
+		log.Fatal("failed to migrate:", err)
+	}
+	userRepo := users.NewUserRepository(db)
+	userService := users.NewUserService(userRepo)
+	userHandler := users.NewUserHandler(userService)
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /register", userHandler.Register)
+	fmt.Println("Server Running..")
+	err = http.ListenAndServe(":8080", mux)
+	if err != nil {
+		log.Fatal(err)
 	}
 }
