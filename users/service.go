@@ -9,10 +9,14 @@ import (
 
 type UserService interface {
 	Register(input RegisterInput) (*User, error)
-	Login(email, password string) (string, error)
+	Login(email, password string) (*TokenResponse, error)
 }
 type RegisterInput struct {
 	UserName string
+	Email    string
+	Password string
+}
+type LoginInput struct {
 	Email    string
 	Password string
 }
@@ -54,18 +58,18 @@ func (us userService) Register(input RegisterInput) (*User, error) {
 	return &user, nil
 }
 
-func (us userService) Login(email, password string) (string, error) {
+func (us userService) Login(email, password string) (*TokenResponse, error) {
 	user, err := us.repo.GetByEmail(email)
 	if err != nil {
-		return "", ErrInvalidCredentials
+		return nil, ErrInvalidCredentials
 	}
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
 	if err != nil {
-		return "", ErrInvalidCredentials
+		return nil, ErrInvalidCredentials
 	}
 	token, err := GenerateToken(user.ID, us.jwtSecret)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	return token, nil
 }

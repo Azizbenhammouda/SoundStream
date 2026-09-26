@@ -38,3 +38,23 @@ func (h userHandler) Register(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(user)
 }
+func (h userHandler) Login(w http.ResponseWriter, req *http.Request) {
+	var input LoginInput
+	err := json.NewDecoder(req.Body).Decode(&input)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	session, err := h.service.Login(input.Email, input.Password)
+	if err != nil {
+		if errors.Is(err, ErrInvalidCredentials) {
+			w.WriteHeader(http.StatusUnauthorized)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(session)
+}

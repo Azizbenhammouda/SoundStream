@@ -7,7 +7,11 @@ import (
 	"github.com/google/uuid"
 )
 
-func GenerateToken(userID uuid.UUID, secret string) (string, error) {
+type TokenResponse struct {
+	Token string `json:"token"`
+}
+
+func GenerateToken(userID uuid.UUID, secret string) (*TokenResponse, error) {
 	claims := jwt.MapClaims{
 		"user_id": userID.String(),
 		"exp":     time.Now().Add(24 * time.Hour).Unix(),
@@ -16,7 +20,9 @@ func GenerateToken(userID uuid.UUID, secret string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	signedToken, err := token.SignedString([]byte(secret))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return signedToken, nil
+	return &TokenResponse{
+		Token: signedToken,
+	}, nil
 }
