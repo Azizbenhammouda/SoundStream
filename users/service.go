@@ -9,7 +9,7 @@ import (
 
 type UserService interface {
 	Register(input RegisterInput) (*User, error)
-	Login(email, password string) (*User, error)
+	Login(email, password string) (string, error)
 }
 type RegisterInput struct {
 	UserName string
@@ -17,15 +17,17 @@ type RegisterInput struct {
 	Password string
 }
 type userService struct {
-	repo UserRepository
+	repo      UserRepository
+	jwtSecret string
 }
 
 var ErrInvalidCredentials = errors.New("Email or Password are invalid")
 var ErrEmailTaken = errors.New("email already in use")
 
-func NewUserService(repo UserRepository) UserService {
+func NewUserService(repo UserRepository, secret string) UserService {
 	return userService{
-		repo: repo,
+		repo:      repo,
+		jwtSecret: secret,
 	}
 }
 func (us userService) Register(input RegisterInput) (*User, error) {
@@ -51,14 +53,19 @@ func (us userService) Register(input RegisterInput) (*User, error) {
 	}
 	return &user, nil
 }
-func (us userService) Login(email, password string) (*User, error) {
+
+func (us userService) Login(email, password string) (string, error) {
 	user, err := us.repo.GetByEmail(email)
 	if err != nil {
-		return nil, ErrInvalidCredentials
+		return "", ErrInvalidCredentials
 	}
 	err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password))
 	if err != nil {
-		return nil, ErrInvalidCredentials
+		return "", ErrInvalidCredentials
 	}
-	return user, nil
+	token, err := GenerateToken(user.ID, us.jwtSecret)
+	if err != nil {
+		return "", err
+	}
+	return token, nil
 }
